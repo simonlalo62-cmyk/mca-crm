@@ -5,59 +5,62 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData()
+    let fields: Record<string, string> = {}
 
-    const businessName = formData.get('q3_legalBusiness')?.toString() || ''
-    const dba = formData.get('q4_dba')?.toString() || ''
-    const businessStreet = formData.get('q5_businessAddress[addr_line1]')?.toString() || ''
-    const businessCity = formData.get('q5_businessAddress[city]')?.toString() || ''
-    const businessState = formData.get('q5_businessAddress[state]')?.toString() || ''
-    const businessZip = formData.get('q5_businessAddress[zip]')?.toString() || ''
-    const businessAddress = `${businessStreet}, ${businessCity}, ${businessState} ${businessZip}`.trim()
-    const homeStreet = formData.get('q7_homeAddress[addr_line1]')?.toString() || ''
-    const homeCity = formData.get('q7_homeAddress[city]')?.toString() || ''
-    const homeState = formData.get('q7_homeAddress[state]')?.toString() || ''
-    const homeZip = formData.get('q7_homeAddress[zip]')?.toString() || ''
-    const homeAddress = `${homeStreet}, ${homeCity}, ${homeState} ${homeZip}`.trim()
-    const entityType = formData.get('q8_typeOf')?.toString() || ''
-    const industry = formData.get('q9_products')?.toString() || ''
-    const businessStartDate = formData.get('q10_businessStart')?.toString() || ''
-    const federalTaxId = formData.get('q11_federalTax')?.toString() || ''
-    const annualRevenue = formData.get('q12_annualRevenue')?.toString() || ''
-    const ownerFirst = formData.get('q13_owner1Full[first]')?.toString() || ''
-    const ownerLast = formData.get('q13_owner1Full[last]')?.toString() || ''
-    const ownerName = `${ownerFirst} ${ownerLast}`.trim()
-    const phone = formData.get('q14_phoneNumber14')?.toString() || ''
-    const email = formData.get('q15_email15')?.toString() || ''
-    const dateOfBirth = formData.get('q16_owner1Date')?.toString() || ''
-    const ssn = formData.get('q17_owner1Social')?.toString() || ''
-    const percentOwnership = formData.get('q18_percent')?.toString() || ''
-    const owner2First = formData.get('q19_owner2Full[first]')?.toString() || ''
-    const owner2Last = formData.get('q19_owner2Full[last]')?.toString() || ''
-    const owner2Name = `${owner2First} ${owner2Last}`.trim()
-    const owner2Phone = formData.get('q20_phoneNumber20')?.toString() || ''
-    const owner2Email = formData.get('q21_email21')?.toString() || ''
-    const owner2Dob = formData.get('q22_owner2Date')?.toString() || ''
-    const owner2Ssn = formData.get('q23_owner2Social')?.toString() || ''
-    const owner2Ownership = formData.get('q24_owner2Percent')?.toString() || ''
+    const contentType = request.headers.get('content-type') || ''
+
+    if (contentType.includes('application/json')) {
+      const json = await request.json()
+      fields = json
+    } else {
+      const formData = await request.formData()
+      formData.forEach((value, key) => {
+        fields[key] = value.toString()
+      })
+    }
+
+    console.log('Jotform submission received:', JSON.stringify(fields))
+
+    const businessName = fields['q3_legalBusiness'] || fields['legalBusiness'] || fields['q3_legal_business'] || ''
+    const dba = fields['q4_dba'] || fields['dba'] || ''
+    const phone = fields['q14_phoneNumber14'] || fields['phoneNumber'] || fields['phone'] || ''
+    const email = fields['q15_email15'] || fields['email'] || ''
+    const entityType = fields['q8_typeOf'] || fields['typeOf'] || ''
+    const industry = fields['q9_products'] || fields['products'] || ''
+    const businessStartDate = fields['q10_businessStart'] || fields['businessStart'] || ''
+    const federalTaxId = fields['q11_federalTax'] || fields['federalTax'] || ''
+    const annualRevenue = fields['q12_annualRevenue'] || fields['annualRevenue'] || ''
+    const ssn = fields['q17_owner1Social'] || fields['owner1Social'] || ''
+    const dateOfBirth = fields['q16_owner1Date'] || fields['owner1Date'] || ''
+    const percentOwnership = fields['q18_percent'] || fields['percent'] || ''
+
+    const ownerFirst = fields['q13_owner1Full[first]'] || fields['owner1FullFirst'] || ''
+    const ownerLast = fields['q13_owner1Full[last]'] || fields['owner1FullLast'] || ''
+    const ownerName = `${ownerFirst} ${ownerLast}`.trim() || fields['q13_owner1Full'] || ''
+
+    const businessStreet = fields['q5_businessAddress[addr_line1]'] || ''
+    const businessCity = fields['q5_businessAddress[city]'] || ''
+    const businessState = fields['q5_businessAddress[state]'] || ''
+    const businessZip = fields['q5_businessAddress[zip]'] || ''
+    const businessAddress = [businessStreet, businessCity, businessState, businessZip].filter(Boolean).join(', ')
+
+    const homeStreet = fields['q7_homeAddress[addr_line1]'] || ''
+    const homeCity = fields['q7_homeAddress[city]'] || ''
+    const homeState = fields['q7_homeAddress[state]'] || ''
+    const homeZip = fields['q7_homeAddress[zip]'] || ''
+    const homeAddress = [homeStreet, homeCity, homeState, homeZip].filter(Boolean).join(', ')
 
     await sql`
       INSERT INTO merchants (
         business_name, dba, business_address, home_address,
         entity_type, industry, business_start_date, federal_tax_id,
         annual_revenue, owner_name, phone, email,
-        date_of_birth, ssn, percent_ownership,
-        owner2_name, owner2_phone, owner2_email,
-        owner2_dob, owner2_ssn, owner2_ownership,
-        stage
+        date_of_birth, ssn, percent_ownership, stage
       ) VALUES (
-        ${businessName}, ${dba}, ${businessAddress}, ${homeAddress},
+        ${businessName || 'Unknown'}, ${dba}, ${businessAddress}, ${homeAddress},
         ${entityType}, ${industry}, ${businessStartDate}, ${federalTaxId},
         ${annualRevenue}, ${ownerName}, ${phone}, ${email},
-        ${dateOfBirth}, ${ssn}, ${percentOwnership},
-        ${owner2Name}, ${owner2Phone}, ${owner2Email},
-        ${owner2Dob}, ${owner2Ssn}, ${owner2Ownership},
-        'New Application'
+        ${dateOfBirth}, ${ssn}, ${percentOwnership}, 'New Application'
       )
     `
 
